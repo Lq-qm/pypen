@@ -7,7 +7,7 @@ variação sutil de tamanho/tinta, simulando caligrafia. Usa apenas Pillow.
 Exemplos:
     python pypen.py texto.txt
     python pypen.py texto.txt -o saida.pdf
-    python pypen.py texto.txt --size 40 --seed 7 --ink "#1f3a93"
+    python pypen.py texto.txt --size 40 --seed 7 --ink 1f3a93
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ SYSTEM_FONTS = (
 
 # --- utilidades -----------------------------------------------------------------
 
-def parse_color(value: str, nome: str = "cor", exemplo: str = "#2b3a67") -> tuple[int, int, int]:
+def parse_color(value: str, nome: str = "cor", exemplo: str = "2b3a67") -> tuple[int, int, int]:
     s = value.lstrip("#")
     if len(s) == 3:
         s = "".join(c * 2 for c in s)
@@ -211,7 +211,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="exemplos:\n"
                "  python pypen.py texto.txt\n"
                "  python pypen.py texto.txt -o saida.pdf --seed 7\n"
-               "  python pypen.py texto.txt --size 40 --ink \"#1f3a93\" --paper letter",
+               "  python pypen.py texto.txt --size 40 --ink 1f3a93 --paper letter",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("input", type=Path, help="arquivo .txt de entrada")
@@ -219,9 +219,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="arquivo .pdf de saída (padrão: <entrada>.pdf)")
     p.add_argument("--size", type=int, default=34, help="tamanho da fonte, em px @150 DPI (padrão: 34)")
     p.add_argument("--font", type=str, default=None, help="caminho para fonte .ttf/.otf (padrão: embutida)")
-    p.add_argument("--ink", type=str, default="#2b3a67", help="cor da tinta em hex, ex.: #2b3a67 (padrão: azul-caneta)")
-    p.add_argument("--paper-color", type=str, default="#ffffff", dest="paper_color",
-                   help="cor do papel em hex, ex.: #f5f1e8 para papel envelhecido (padrão: #ffffff)")
+    p.add_argument("--ink", type=str, default="2b3a67", help="cor da tinta em hex (sem #), ex.: 2b3a67 (padrão: azul-caneta)")
+    p.add_argument("--paper-color", type=str, default="ffffff", dest="paper_color",
+                   help="cor do papel em hex (sem #), ex.: f5f1e8 para papel envelhecido (padrão: branco)")
     p.add_argument("--seed", type=int, default=None, help="semente aleatória p/ reproduzir o mesmo 'tremor'")
     p.add_argument("--margin", type=int, default=90, help="margem da página, em pixels (padrão: 90)")
     p.add_argument("--paper", choices=sorted(PAPERS), default="a4", help="tamanho do papel (padrão: a4)")
@@ -244,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"aviso: {args.input} está vazio; gerando página em branco.", file=sys.stderr)
 
     ink = parse_color(args.ink, "cor da tinta")
-    paper = parse_color(args.paper_color, "cor do papel", exemplo="#f5f1e8")
+    paper = parse_color(args.paper_color, "cor do papel", exemplo="f5f1e8")
     if contrast_ratio(ink, paper) < 2.5:
         print("aviso: tinta e papel muito próximas; o texto pode ficar pouco legível.", file=sys.stderr)
 

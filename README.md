@@ -19,8 +19,8 @@ pip install -r requirements.txt
 python pypen.py texto.txt                        # gera texto.pdf
 python pypen.py texto.txt -o saida.pdf           # saída personalizada
 python pypen.py texto.txt --size 40 --seed 7     # reproduz o mesmo "tremor"
-python pypen.py texto.txt --ink "#1f3a93" --paper letter
-python pypen.py texto.txt --paper-color "#f5f1e8"   # papel envelhecido
+python pypen.py texto.txt --ink 1f3a93 --paper letter
+python pypen.py texto.txt --paper-color f5f1e8      # papel envelhecido
 ```
 
 Se o texto não couber na página, o tamanho da fonte é **reduzido automaticamente**
@@ -34,8 +34,8 @@ para caber em uma única página (até o mínimo de 10 px; além disso, o excede
 | `-o/--output`  | `<entrada>.pdf`   | arquivo `.pdf` de saída                                |
 | `--size`       | `34`              | tamanho da fonte em px @150 DPI                        |
 | `--font`       | embutida          | caminho para outra fonte `.ttf`/`.otf` (ex.: Caveat)   |
-| `--ink`        | `#2b3a67`         | cor da tinta em hex                                    |
-| `--paper-color`| `#ffffff`         | cor do papel em hex (ex.: `#f5f1e8` = envelhecido)     |
+| `--ink`        | `2b3a67`          | cor da tinta em hex (sem `#`)                          |
+| `--paper-color`| `ffffff`          | cor do papel em hex (sem `#`), ex.: `f5f1e8` = envelhecido |
 | `--seed`       | aleatória         | semente p/ reproduzir exatamente a mesma página        |
 | `--margin`     | `90`              | margem da página, em pixels                            |
 | `--paper`      | `a4`              | `a4` ou `letter`                                       |
