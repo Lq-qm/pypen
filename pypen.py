@@ -42,13 +42,24 @@ SYSTEM_FONTS = (
 
 # --- utilidades -----------------------------------------------------------------
 
-def parse_ink(value: str) -> tuple[int, int, int]:
+def parse_color(value: str, nome: str = "cor", exemplo: str = "#2b3a67") -> tuple[int, int, int]:
     s = value.lstrip("#")
     if len(s) == 3:
         s = "".join(c * 2 for c in s)
     if len(s) != 6 or any(c not in "0123456789abcdefABCDEF" for c in s):
-        sys.exit(f"erro: cor inválida {value!r} (ex.: #2b3a67)")
+        sys.exit(f"erro: {nome} inválida {value!r} (ex.: {exemplo})")
     return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+
+
+def luminance(rgb: tuple[int, int, int]) -> float:
+    r, g, b = (c / 255 for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast_ratio(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
+    la, lb = luminance(a), luminance(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
 
 
 def resolve_font_path(explicit: str | None) -> Path | None:
@@ -108,6 +119,7 @@ def render(
     page: tuple[int, int],
     margin: int,
     ink: tuple[int, int, int],
+    background: tuple[int, int, int] = (255, 255, 255),
     seed: int | None,
     jitter: bool = True,
 ) -> tuple[Image.Image, int, list[str]]:
@@ -140,7 +152,7 @@ def render(
     overflow = len(lines) * int(font_size * LINE_HEIGHT_FACTOR) > max_height
 
     # --- desenha a página ---
-    img = Image.new("RGB", (page_w, page_h), "white")
+    img = Image.new("RGB", (page_w, page_h), background)
     draw = ImageDraw.Draw(img)
     ascent, _ = font.getmetrics()
     line_h = int(font_size * LINE_HEIGHT_FACTOR)
@@ -208,6 +220,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--size", type=int, default=34, help="tamanho da fonte, em px @150 DPI (padrão: 34)")
     p.add_argument("--font", type=str, default=None, help="caminho para fonte .ttf/.otf (padrão: embutida)")
     p.add_argument("--ink", type=str, default="#2b3a67", help="cor da tinta em hex, ex.: #2b3a67 (padrão: azul-caneta)")
+    p.add_argument("--paper-color", type=str, default="#ffffff", dest="paper_color",
+                   help="cor do papel em hex, ex.: #f5f1e8 para papel envelhecido (padrão: #ffffff)")
     p.add_argument("--seed", type=int, default=None, help="semente aleatória p/ reproduzir o mesmo 'tremor'")
     p.add_argument("--margin", type=int, default=90, help="margem da página, em pixels (padrão: 90)")
     p.add_argument("--paper", choices=sorted(PAPERS), default="a4", help="tamanho do papel (padrão: a4)")
@@ -229,7 +243,11 @@ def main(argv: list[str] | None = None) -> int:
     if not text.strip():
         print(f"aviso: {args.input} está vazio; gerando página em branco.", file=sys.stderr)
 
-    ink = parse_ink(args.ink)
+    ink = parse_color(args.ink, "cor da tinta")
+    paper = parse_color(args.paper_color, "cor do papel", exemplo="#f5f1e8")
+    if contrast_ratio(ink, paper) < 2.5:
+        print("aviso: tinta e papel muito próximas; o texto pode ficar pouco legível.", file=sys.stderr)
+
     font_path = resolve_font_path(args.font)
     font_label = str(font_path) if font_path else "padrão (DejaVu)"
 
@@ -240,6 +258,7 @@ def main(argv: list[str] | None = None) -> int:
         page=PAPERS[args.paper],
         margin=args.margin,
         ink=ink,
+        background=paper,
         seed=args.seed,
         jitter=not args.no_jitter,
     )
