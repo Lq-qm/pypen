@@ -8,6 +8,7 @@ Exemplos:
     python pypen.py texto.txt
     python pypen.py texto.txt -o saida.pdf
     python pypen.py texto.txt --size 40 --seed 7 --ink 1f3a93
+    python pypen.py texto.txt --font medieval --paper-color f5f1e8
 """
 
 from __future__ import annotations
@@ -31,6 +32,19 @@ PAPERS: dict[str, tuple[int, int]] = {
 }
 
 BUNDLED_FONTS = ("fonts/PatrickHand-Regular.ttf", "fonts/Kalam-Regular.ttf")
+
+# presets nomeados para --font (valores são caminhos relativos à raiz do projeto)
+FONT_PRESETS: dict[str, str] = {
+    "manuscrita": "fonts/PatrickHand-Regular.ttf",   # caneta, dia a dia
+    "kalam": "fonts/Kalam-Regular.ttf",              # caneta, traço mais grosso
+    "medieval": "fonts/MedievalSharp-Regular.ttf",   # "medieval sharp" (wmk69)
+    "uncial": "fonts/UncialAntiqua-Regular.ttf",     # uncial, manuscritos 4º-8º s.
+    "fraktur": "fonts/UnifrakturMaguntia-Book.ttf",  # blackletter (j. wust / P. Wiegel)
+    "fraktur-bold": "fonts/UnifrakturCook-Bold.ttf", # blackletter grossa (j. wust)
+    "almendra": "fonts/Almendra-Regular.ttf",        # serifas "antigas" (A. Sanfelippo)
+    "im-fell": "fonts/IMFellEnglish-Regular.ttf",    # estilo livro do séc. XVII (I. Marini)
+    "gotica": "fonts/GrenzeGotisch-Variable.ttf",    # gótica de display (Omnibus-Type)
+}
 SYSTEM_FONTS = (
     "/usr/share/fonts/truetype/crosextra/ComicNeue-Regular.ttf",
     "/usr/share/fonts/truetype/comic/ComicShanns-Regular.ttf",
@@ -63,12 +77,22 @@ def contrast_ratio(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
 
 
 def resolve_font_path(explicit: str | None) -> Path | None:
-    """Retorna o caminho da fonte a usar, ou None para usar a fonte padrão do Pillow."""
+    """Retorna o caminho da fonte a usar, ou None para usar a fonte padrão do Pillow.
+
+    `explicit` pode ser um caminho para .ttf/.otf ou o nome de um preset
+    (ex.: "medieval", "fraktur" — veja FONT_PRESETS).
+    """
     if explicit:
         p = Path(explicit)
-        if not p.is_file():
-            sys.exit(f"erro: fonte não encontrada: {p}")
-        return p
+        if p.is_file():
+            return p
+        rel = FONT_PRESETS.get(explicit.lower())
+        if rel:
+            fp = Path(__file__).resolve().parent / rel
+            if fp.is_file():
+                return fp
+        preset_list = ", ".join(f"{k} ({v.split('/')[-1]})" for k, v in FONT_PRESETS.items())
+        sys.exit(f"erro: fonte não encontrada: {explicit!r}\npresets disponíveis: {preset_list}")
     script_dir = Path(__file__).resolve().parent
     for rel in BUNDLED_FONTS:
         p = script_dir / rel
@@ -211,14 +235,17 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="exemplos:\n"
                "  python pypen.py texto.txt\n"
                "  python pypen.py texto.txt -o saida.pdf --seed 7\n"
-               "  python pypen.py texto.txt --size 40 --ink 1f3a93 --paper letter",
+"  python pypen.py texto.txt --size 40 --ink 1f3a93 --paper letter\n"
+"  python pypen.py texto.txt --font medieval --paper-color f5f1e8",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("input", type=Path, help="arquivo .txt de entrada")
     p.add_argument("-o", "--output", type=Path, default=None,
                    help="arquivo .pdf de saída (padrão: <entrada>.pdf)")
     p.add_argument("--size", type=int, default=34, help="tamanho da fonte, em px @150 DPI (padrão: 34)")
-    p.add_argument("--font", type=str, default=None, help="caminho para fonte .ttf/.otf (padrão: embutida)")
+    p.add_argument("--font", type=str, default=None,
+                   help="preset de fonte ou caminho .ttf/.otf (padrão: manuscrita). "
+                        f"presets: {', '.join(FONT_PRESETS)}")
     p.add_argument("--ink", type=str, default="2b3a67", help="cor da tinta em hex (sem #), ex.: 2b3a67 (padrão: azul-caneta)")
     p.add_argument("--paper-color", type=str, default="ffffff", dest="paper_color",
                    help="cor do papel em hex (sem #), ex.: f5f1e8 para papel envelhecido (padrão: branco)")

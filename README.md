@@ -4,8 +4,11 @@ Transforma um arquivo `.txt` em um **PDF de uma página**, com aparência de **e
 
 Cada caractere é desenhado individualmente com leve rotação, "tremor" de linha e
 variação sutil de tamanho e pressão da tinta — simulando caligrafia. A única
-dependência é o [Pillow](https://pillow.readthedocs.io/). As fontes embutidas
-(**Patrick Hand** e **Kalam**) têm licença [OFL 1.1](fonts/OFL.txt).
+dependência é o [Pillow](https://pillow.readthedocs.io/).
+
+Veem embutidas **9 fontes open-source** (todas com licença [OFL 1.1](fonts/licenses/)),
+das caneta do dia a dia a estilos **medievais** — uncials, blackletter (fraktur) e
+serifas antigas de livro. Veja a [tabela de fontes](#fontes).
 
 ## Instalação
 
@@ -21,6 +24,8 @@ python pypen.py texto.txt -o saida.pdf           # saída personalizada
 python pypen.py texto.txt --size 40 --seed 7     # reproduz o mesmo "tremor"
 python pypen.py texto.txt --ink 1f3a93 --paper letter
 python pypen.py texto.txt --paper-color f5f1e8      # papel envelhecido
+python pypen.py texto.txt --font medieval           # estilo medieval (MedievalSharp)
+python pypen.py texto.txt --font fraktur --paper-color f0ead8  # blackletter, papel velho
 ```
 
 Se o texto não couber na página, o tamanho da fonte é **reduzido automaticamente**
@@ -33,7 +38,7 @@ para caber em uma única página (até o mínimo de 10 px; além disso, o excede
 | `input`        | —                 | arquivo `.txt` de entrada (UTF-8)                      |
 | `-o/--output`  | `<entrada>.pdf`   | arquivo `.pdf` de saída                                |
 | `--size`       | `34`              | tamanho da fonte em px @150 DPI                        |
-| `--font`       | embutida          | caminho para outra fonte `.ttf`/`.otf` (ex.: Caveat)   |
+| `--font`       | `manuscrita`      | preset de fonte ou caminho `.ttf`/`.otf` (ver [fontes](#fontes)) |
 | `--ink`        | `2b3a67`          | cor da tinta em hex (sem `#`)                          |
 | `--paper-color`| `ffffff`          | cor do papel em hex (sem `#`), ex.: `f5f1e8` = envelhecido |
 | `--seed`       | aleatória         | semente p/ reproduzir exatamente a mesma página        |
@@ -51,3 +56,29 @@ para caber em uma única página (até o mínimo de 10 px; além disso, o excede
 
 Glifos ausentes na fonte principal caem automaticamente na fonte padrão do
 Pillow (DejaVu). Para CJK/árabe etc., passe `--font` com uma fonte adequada.
+
+## Fontes
+
+Todos os presets abaixo já vêm embutidos em `fonts/` e têm cobertura completa
+para o português (acentos `ã ç é õ` etc.). Licença [OFL 1.1](fonts/licenses/).
+
+| preset         | fonte               | estilo                                     | autor(a)                    |
+| -------------- | ------------------- | ------------------------------------------ | --------------------------- |
+| `manuscrita`   | Patrick Hand        | caneta, dia a dia (padrão)                 | Patrick Wagesreiter         |
+| `kalam`        | Kalam               | caneta, traço mais grosso                  | Indian Type Foundry         |
+| `medieval`     | MedievalSharp       | "medieval", arestas suaves                 | wmk69                       |
+| `uncial`       | Uncial Antiqua      | uncial, manuscritos dos séculos 4–8        | Brian J. Bonislawsky        |
+| `fraktur`      | UnifrakturMaguntia  | blackletter (texto gótico antigo)          | j. wust / Peter Wiegel      |
+| `fraktur-bold` | UnifrakturCook      | blackletter grossa                         | j. wust / Peter Wiegel      |
+| `almendra`     | Almendra            | serifa "antiga", humanista                 | Ana Sanfelippo              |
+| `im-fell`      | IM FELL English     | estilo livro impresso do séc. XVII         | Igino Marini                |
+| `gotica`       | Grenze Gotisch      | gótica de display, pesada                  | Omnibus-Type                |
+
+Também é possível apontar para qualquer `.ttf`/`.otf` próprio:
+
+```bash
+python pypen.py texto.txt --font /caminho/para/Caveat.ttf
+```
+
+> Dica: para um visual de "pergaminho", combine `--font uncial` ou `fraktur`
+> com `--paper-color f0ead8` e `--ink 3b2f1e`.
