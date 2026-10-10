@@ -13,7 +13,19 @@ serifas antigas de livro. Veja a [tabela de fontes](#fontes).
 ## Instalação
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt          # CLI
+pip install -r requirements-gui.txt      # interface gráfica (opcional)
+```
+
+## Interface gráfica
+
+Com todos os controles (fonte, cores do papel e da tinta, tamanho, margem, seed) e
+**pré-visualização ao vivo** — o resultado aparece na própria página enquanto você
+ajusta; no final, um botão baixa o PDF de uma página:
+
+```bash
+.venv/bin/python app.py        # ou: python app.py
+# abra http://127.0.0.1:7860
 ```
 
 ## Uso
@@ -26,6 +38,8 @@ python pypen.py texto.txt --ink 1f3a93 --paper letter
 python pypen.py texto.txt --paper-color f5f1e8      # papel envelhecido
 python pypen.py texto.txt --font medieval           # estilo medieval (MedievalSharp)
 python pypen.py texto.txt --font fraktur --paper-color f0ead8  # blackletter, papel velho
+
+python app.py                          # interface gráfica com pré-visualização ao vivo
 ```
 
 Se o texto não couber na página, o tamanho da fonte é **reduzido automaticamente**
