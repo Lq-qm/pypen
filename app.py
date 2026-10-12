@@ -105,6 +105,8 @@ def baixar_pdf_texturizado(
     margem: float,
     seed: int | None,
     jitter: bool,
+    tipo_textura: str,
+    tom_papel: str,
     intensidade: float,
 ) -> str:
     """Gera o PDF e aplica a texturização realista do módulo textura (augraphy)."""
@@ -116,7 +118,13 @@ def baixar_pdf_texturizado(
     fd2, final = tempfile.mkstemp(suffix=".pdf", prefix="pypen-texturizado-")
     os.close(fd2)
     try:
-        textura.texturizar_pdf(bruto, final, seed=seed, intensidade=intensidade)
+        textura.texturizar_pdf(
+            bruto, final,
+            seed=seed,
+            intensidade=intensidade,
+            tipo_textura=tipo_textura,
+            tom=tom_papel,
+        )
     except SystemExit as e:
         raise gr.Error(f"Texturização indisponível: {e}")
     return str(final)
@@ -165,6 +173,18 @@ def load_demo() -> gr.Blocks:
                     )
                 pdf_file = gr.File(label="PDF")
                 btn_pdf = gr.Button("⬇️ Baixar PDF de uma página", variant="primary")
+                with gr.Row():
+                    tipo_textura = gr.Dropdown(
+                        choices=["random", "normal", "rough_stains", "fine_stains",
+                                "light_stains", "curvy_edge"],
+                        value="random",
+                        label="Textura: tipo do papel",
+                    )
+                    tom_papel = gr.Dropdown(
+                        choices=["neutro", "creme", "sepia", "azulado"],
+                        value="neutro",
+                        label="Textura: tom do papel",
+                    )
                 intensidade = gr.Slider(
                     0, 1, value=0.6, step=0.05,
                     label="Textura: intensidade (0 = só papel, 1 = envelhecido)",
@@ -184,7 +204,7 @@ def load_demo() -> gr.Blocks:
         for comp in all_inputs:
             comp.change(render_page, inputs=all_inputs, outputs=preview, api_name="/render")
         btn_pdf.click(baixar_pdf, inputs=all_inputs, outputs=pdf_file, api_name="/pdf")
-        inputs_tex = all_inputs + [intensidade]
+        inputs_tex = all_inputs + [tipo_textura, tom_papel, intensidade]
         btn_textura.click(
             baixar_pdf_texturizado,
             inputs=inputs_tex,

@@ -60,9 +60,29 @@ texturizar_pdf("saida.pdf", "saida_texturada.pdf", seed=7, intensidade=0.6)
 
 | opção | descrição |
 |---|---|
-| `--intensidade` | força do envelhecimento, 0–1 (padrão 0.6) |
-| `--textura` | tipo de textura: `normal`, `rough_stains`, `fine_stains`, `light_stains`, `curvy_edge` ou `random` (sorteado com a seed) |
+| `--intensidade` | força global do envelhecimento, 0–1 (padrão 0.6) |
+| `--textura` | tipo de textura do papel: `normal`, `rough_stains`, `fine_stains`, `light_stains`, `curvy_edge` ou `random` (sorteado com a seed) |
+| `--tom` | cor do papel: `neutro` (padrão), `creme`, `sepia`, `azulado` |
+| `--manchas` | manchas de idade — 0 desliga, 1 padrão, até 1.5 reforça |
+| `--bleed` | bleed de tinta (tinta esmagada no papel) — 0 desliga, 1 padrão |
+| `--grao` | grão fino do papel — 0 desliga, 1 padrão |
+| `--bordas` | escurecimento das bordas (vignette), 0–1 (padrão 0.5) |
+| `--luz` | gradiente de luz (papel sob lâmpada), 0–1 (padrão 0.3) |
 | `--seed` | mesma seed → mesmo resultado (reprodutível) |
+
+Cada efeito tem força **individual** — desligue o que não quiser:
+
+```bash
+# papel creme, sem manchas de idade, bordas bem marcadas
+python textura.py saida.pdf --tom creme --manchas 0 --bordas 0.9
+
+# tinta bem nítida (sem bleed), sem grão, com luz de escritório
+python textura.py saida.pdf --bleed 0 --grao 0 --luz 0.5
+```
+
+> No `pypen.py` (um comando só) os atalhos são `--textura`, `--intensidade`,
+> `--tipo-textura` e `--tom-papel`; para afinar cada efeito, rode o passo 2
+> com `textura.py`.
 
 ## Uso
 

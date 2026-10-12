@@ -247,7 +247,8 @@ def build_parser() -> argparse.ArgumentParser:
                "  python pypen.py texto.txt -o saida.pdf --seed 7\n"
 "  python pypen.py texto.txt --size 40 --ink 1f3a93 --paper letter\n"
 "  python pypen.py texto.txt --font medieval --paper-color f5f1e8\n"
-"  python pypen.py texto.txt --textura --seed 7   # papel + tinta realistas (augraphy)",
+"  python pypen.py texto.txt --textura --seed 7   # papel + tinta realistas (augraphy)\n"
+"  python pypen.py texto.txt --textura --tom-papel sepia --tipo-textura fine_stains",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("input", type=Path, help="arquivo .txt de entrada")
@@ -269,6 +270,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "requer: pip install -r requirements-textura.txt)")
     p.add_argument("--intensidade", type=float, default=0.6, dest="intensidade",
                    help="força da textura, 0-1 (padrão: 0.6; só tem efeito com --textura)")
+    p.add_argument("--tipo-textura", type=str, default="random", dest="tipo_textura",
+                   help="tipo de textura do papel: random | normal | rough_stains | fine_stains | "
+                        "light_stains | curvy_edge (só com --textura)")
+    p.add_argument("--tom-papel", type=str, default="neutro", dest="tom_papel",
+                   choices=["neutro", "creme", "sepia", "azulado"],
+                   help="cor do papel texturizado (padrão: neutro; só com --textura)")
     return p
 
 
@@ -313,7 +320,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.textura:
         try:
             import textura  # módulo opcional da mesma pasta (não afeta o núcleo)
-            textura.texturizar_pdf(out, out, seed=args.seed, intensidade=args.intensidade)
+            textura.texturizar_pdf(
+                out, out,
+                seed=args.seed,
+                intensidade=args.intensidade,
+                tipo_textura=args.tipo_textura,
+                tom=args.tom_papel,
+            )
             texturizado = True
         except SystemExit as e:
             print(f"aviso: {e}", file=sys.stderr)

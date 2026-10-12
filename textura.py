@@ -4,8 +4,12 @@
 textura.py — texturização realista dos PDFs gerados pelo pypen (módulo opcional).
 
 Usa a biblioteca **augraphy** para dar a um PDF que *já foi criado* a cara de
-página manuscrita de verdade: textura de papel, bleed de tinta, manchas de
-idade, variação de brilho e grão fino.
+página manuscrita de verdade — e com **opções de personalização**:
+
+  * tipo de textura do papel  (--textura)
+  * tom do papel             (--tom: neutro, creme, sepia, azulado)
+  * força global             (--intensidade)
+  * e cada efeito individual (--manchas, --bleed, --grao, --bordas, --luz)
 
 Como o augraphy 8.x trabalha com camadas separadas (papel e tinta), este módulo:
 
@@ -24,11 +28,13 @@ Uso no terminal:
     python textura.py saida.pdf                     # -> saida_texturizado.pdf
     python textura.py saida.pdf -o velha.pdf --seed 7
     python textura.py saida.pdf --intensidade 0.9 --textura fine_stains
+    python textura.py saida.pdf --tom sepia --bordas 0.8 --luz 0.5 --manchas 0
 
 Uso em Python:
 
     from textura import texturizar_pdf
-    texturizar_pdf("saida.pdf", "saida_texturada.pdf", seed=7, intensidade=0.6)
+    texturizar_pdf("saida.pdf", "saida_texturada.pdf", seed=7,
+                   intensidade=0.6, tom="creme", bordas=0.5)
 """
 from __future__ import annotations
 
@@ -61,6 +67,15 @@ SAFE_TEX_TYPES = [
     "light_stains",
     "curvy_edge",
 ]
+
+# Tons de papel: multiplicadores RGB aplicados sobre a textura gerada
+# (neutro = sem tingimento; o resto dá a cor de papel velho de verdade).
+TONS = {
+    "neutro":  (255, 255, 255),
+    "creme":   (255, 248, 232),
+    "sepia":   (255, 241, 214),
+    "azulado": (240, 246, 255),
+}
 
 # DPI padrão, idêntico ao do pypen (A4/Letter em px já vêm embutidos no PDF)
 DPI = 150
@@ -143,6 +158,26 @@ def _aplicar(aug: object, img: np.ndarray) -> np.ndarray:
     return arr
 
 
+def _escurecer_bordas(img: np.ndarray, forca: float) -> np.ndarray:
+    """Escurece as bordas da página (vignette) — papel usado de verdade."""
+    forca = min(1.0, max(0.0, float(forca)))
+    if forca == 0:
+        return img
+    alt, larg = img.shape[:2]
+    y, x = np.mgrid[0:alt, 0:larg]
+    dx = (x - larg / 2) / (larg / 2)
+    dy = (y - alt / 2) / (alt / 2)
+    d = np.sqrt(dx * dx + dy * dy) / np.sqrt(2)  # 0 no centro, 1 nos cantos
+    t = np.clip((d - 0.70) / (1.0 - 0.70), 0.0, 1.0) ** 1.7
+    fator = (1.0 - forca * 0.30 * t)[..., None]  # até ~30% mais escuro no canto
+    return np.clip(img.astype(float) * fator, 0, 255).astype("uint8")
+
+
+def _escala(valor: float, teto: float = 1.5) -> float:
+    """Multiplicador de efeito: 0 desliga, 1 = padrão, até `teto` reforça."""
+    return min(float(teto), max(0.0, float(valor)))
+
+
 def texturizar_pdf(
     entrada: str | Path,
     saida: str | Path | None = None,
@@ -150,6 +185,12 @@ def texturizar_pdf(
     seed: int | None = None,
     intensidade: float = 0.6,
     tipo_textura: str = "random",
+    tom: str = "neutro",
+    manchas: float = 1.0,
+    bleed: float = 1.0,
+    grão: float = 1.0,
+    bordas: float = 0.5,
+    luz: float = 0.3,
     dpi: int = DPI,
 ) -> Path:
     """Aplica texturização realista a um PDF de 1 página e salva o resultado.
@@ -157,8 +198,14 @@ def texturizar_pdf(
     :param entrada: PDF já criado (gerado pelo pypen).
     :param saida: destino; padrão "<nome do entrada>_texturizado.pdf".
     :param seed: semente para reprodutibilidade (None = aleatório).
-    :param intensidade: 0.0–1.0 (padrão 0.6) — força do envelhecimento.
+    :param intensidade: 0.0–1.0 (padrão 0.6) — força global do envelhecimento.
     :param tipo_textura: um de SAFE_TEX_TYPES ou "random" (sorteado com a seed).
+    :param tom: cor do papel — neutro | creme | sepia | azulado.
+    :param manchas: multiplicador das manchas de idade (0 desliga, 1 = padrão).
+    :param bleed: multiplicador do bleed de tinta (0 desliga, 1 = padrão).
+    :param grão: multiplicador do grão fino (0 desliga, 1 = padrão).
+    :param bordas: escurecimento das bordas, 0–1 (padrão 0.5).
+    :param luz: gradiente de luz ("papel sob lâmpada"), 0–1 (padrão 0.3).
     :param dpi: resolução do PDF de saída (padrão 150, igual ao pypen).
     :return: caminho do PDF texturizado criado.
     """
@@ -166,8 +213,14 @@ def texturizar_pdf(
     entrada = Path(entrada)
     if not entrada.exists():
         raise FileNotFoundError(f"PDF não encontrado: {entrada}")
+    if tom not in TONS:
+        raise ValueError(f"tom desconhecido: {tom!r} — use um de {list(TONS)}")
 
     intensidade = min(1.0, max(0.0, float(intensidade)))
+    m_f = _escala(manchas)   # multiplicadores de cada efeito
+    b_f = _escala(bleed)
+    g_f = _escala(grão)
+
     rng = random.Random(seed)
     tipo = tipo_textura if tipo_textura != "random" else rng.choice(SAFE_TEX_TYPES)
     if tipo not in SAFE_TEX_TYPES:
@@ -180,9 +233,12 @@ def texturizar_pdf(
     alt, larg, _ = orig.shape
     lum = 0.299 * orig[..., 0] + 0.587 * orig[..., 1] + 0.114 * orig[..., 2]
 
-    # 2) camada de papel texturizado (canvas branco -> textura)
+    # 2) camada de papel texturizado (canvas branco -> textura) + tom do papel
     _semeiar(seed)
     papel = _camada_papel((larg, alt), tipo, rng)
+    if tom != "neutro":
+        fator_tom = np.array(TONS[tom], dtype=float) / 255.0
+        papel = np.clip(papel.astype(float) * fator_tom, 0, 255).astype("uint8")
 
     # 3) recompor a página original (tinta com cor e anti-alias intactos)
     #    sobre o papel texturizado: tinta sólida opaca, bordas mescladas.
@@ -191,36 +247,52 @@ def texturizar_pdf(
 
     # 4) efeito de tinta: bleed (tinta "esmaga" o papel, como caneta de verdade)
     _semeiar(seed)
-    if intensidade > 0:
+    if intensidade > 0 and b_f > 0:
         pagina2 = _aplicar(
             augraphy.InkBleed(
-                intensity_range=(0.2, 0.3 + 0.4 * intensidade),
-                severity=(0.2, 0.3 + 0.3 * intensidade),
-                p=round(0.9 * intensidade, 4),
+                intensity_range=(0.2, 0.3 + 0.4 * intensidade * min(b_f, 1.0)),
+                severity=(0.2, 0.3 + 0.3 * intensidade * min(b_f, 1.0)),
+                p=round(min(1.0, 0.9 * intensidade * b_f), 4),
             ),
             pagina2,
         )
 
-    # 5) envelhecimento: manchas + brilho irregular + grão fino
-    pagina2 = _aplicar(
-        augraphy.Stains(
-            stains_type="random",
-            stains_blend_alpha=round(0.2 + 0.3 * intensidade, 3),
-            p=round(0.7 * intensidade, 4),
-        ),
-        pagina2,
-    )
-    pagina2 = _aplicar(
-        augraphy.BrightnessTexturize(
-            texturize_range=(round(1 - 0.04 - 0.05 * intensidade, 3), 0.99),
-            p=0.8,
-        ),
-        pagina2,
-    )
-    pagina2 = _aplicar(
-        augraphy.SubtleNoise(subtle_range=max(2, int(2 + 10 * intensidade)), p=1),
-        pagina2,
-    )
+    # 5) envelhecimento do papel
+    _semeiar(seed)
+    if m_f > 0:  # manchas de idade
+        pagina2 = _aplicar(
+            augraphy.Stains(
+                stains_type="random",
+                stains_blend_alpha=round((0.2 + 0.3 * intensidade) * min(m_f, 1.0), 3),
+                p=round(min(1.0, 0.7 * intensidade * m_f), 4),
+            ),
+            pagina2,
+        )
+    if intensidade > 0:  # brilho irregular (papel que não reflete igual)
+        pagina2 = _aplicar(
+            augraphy.BrightnessTexturize(
+                texturize_range=(round(1 - 0.04 - 0.05 * intensidade, 3), 0.99),
+                p=0.8,
+            ),
+            pagina2,
+        )
+
+    # 6) iluminação: gradiente de luz (efeito forte do augraphy, mesclado)
+    if luz > 0:
+        _semeiar(seed)
+        l_f = min(1.0, max(0.0, float(luz)))
+        sombra = _aplicar(augraphy.LightingGradient(p=1), pagina2)
+        pagina2 = (pagina2.astype(float) * (1.0 - l_f) + sombra * l_f).astype("uint8")
+
+    # 7) bordas escurecidas (vignette) — determinístico, nosso próprio
+    pagina2 = _escurecer_bordas(pagina2, bordas)
+
+    # 8) grão fino por último (por cima de tudo)
+    if g_f > 0:
+        pagina2 = _aplicar(
+            augraphy.SubtleNoise(subtle_range=max(2, int((2 + 10 * intensidade) * min(g_f, 1.0))), p=1),
+            pagina2,
+        )
 
     img = Image.fromarray(pagina2, "RGB")
     saida = Path(saida) if saida else entrada.with_name(f"{entrada.stem}_texturizado.pdf")
@@ -244,11 +316,35 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "--intensidade", type=float, default=0.6, metavar="0-1",
-        help="força do efeito de envelhecimento (0 = só textura de papel, 1 = forte)",
+        help="força global do envelhecimento (0 = só textura de papel, 1 = forte)",
     )
     ap.add_argument(
         "--textura", default="random",
-        help="tipo de textura: random | " + " | ".join(SAFE_TEX_TYPES),
+        help="tipo de textura do papel: random | " + " | ".join(SAFE_TEX_TYPES),
+    )
+    ap.add_argument(
+        "--tom", default="neutro", choices=list(TONS),
+        help="cor do papel (tinge a textura)",
+    )
+    ap.add_argument(
+        "--manchas", type=float, default=1.0, metavar="0-1.5",
+        help="manchas de idade: 0 desliga, 1 = padrão, 1.5 reforça",
+    )
+    ap.add_argument(
+        "--bleed", type=float, default=1.0, metavar="0-1.5",
+        help="bleed de tinta (tinta esmagada no papel): 0 desliga, 1 = padrão",
+    )
+    ap.add_argument(
+        "--grao", type=float, default=1.0, metavar="0-1.5",
+        help="grão fino do papel: 0 desliga, 1 = padrão",
+    )
+    ap.add_argument(
+        "--bordas", type=float, default=0.5, metavar="0-1",
+        help="escurecimento das bordas (vignette): 0 desliga",
+    )
+    ap.add_argument(
+        "--luz", type=float, default=0.3, metavar="0-1",
+        help="gradiente de luz (papel sob lâmpada): 0 desliga",
     )
     args = ap.parse_args(argv)
 
@@ -258,6 +354,12 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
             intensidade=args.intensidade,
             tipo_textura=args.textura,
+            tom=args.tom,
+            manchas=args.manchas,
+            bleed=args.bleed,
+            grão=args.grao,
+            bordas=args.bordas,
+            luz=args.luz,
         )
     except (SystemExit, FileNotFoundError, ValueError) as e:
         print(f"erro: {e}", file=sys.stderr)
