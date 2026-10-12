@@ -35,8 +35,18 @@ BUNDLED_FONTS = ("fonts/PatrickHand-Regular.ttf", "fonts/Kalam-Regular.ttf")
 
 # presets nomeados para --font (valores são caminhos relativos à raiz do projeto)
 FONT_PRESETS: dict[str, str] = {
+    # — caneta, dia a dia —
     "manuscrita": "fonts/PatrickHand-Regular.ttf",   # caneta, dia a dia
     "kalam": "fonts/Kalam-Regular.ttf",              # caneta, traço mais grosso
+    # — cursivas —
+    "cursiva": "fonts/Caveat-Variable.ttf",          # cursiva casual (Caveat Project)
+    "dancing": "fonts/DancingScript-Variable.ttf",   # cursiva fluida (Dancing Script Project)
+    "tangerine": "fonts/Tangerine-Regular.ttf",      # cursiva fina (Toshi Omagari)
+    "indie": "fonts/IndieFlower-Regular.ttf",        # cursiva despojada (kimberlygeswein)
+    "sacramento": "fonts/Sacramento-Regular.ttf",    # cursiva elegante (Astigmatic)
+    "allura": "fonts/Allura-Regular.ttf",            # caligráfica (Allura Project)
+    "great-vibes": "fonts/GreatVibes-Regular.ttf",   # caligráfica fina (Great Vibes Project)
+    # — medievais —
     "medieval": "fonts/MedievalSharp-Regular.ttf",   # "medieval sharp" (wmk69)
     "uncial": "fonts/UncialAntiqua-Regular.ttf",     # uncial, manuscritos 4º-8º s.
     "fraktur": "fonts/UnifrakturMaguntia-Book.ttf",  # blackletter (j. wust / P. Wiegel)
@@ -236,7 +246,8 @@ def build_parser() -> argparse.ArgumentParser:
                "  python pypen.py texto.txt\n"
                "  python pypen.py texto.txt -o saida.pdf --seed 7\n"
 "  python pypen.py texto.txt --size 40 --ink 1f3a93 --paper letter\n"
-"  python pypen.py texto.txt --font medieval --paper-color f5f1e8",
+"  python pypen.py texto.txt --font medieval --paper-color f5f1e8\n"
+"  python pypen.py texto.txt --textura --seed 7   # papel + tinta realistas (augraphy)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("input", type=Path, help="arquivo .txt de entrada")
@@ -253,6 +264,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--margin", type=int, default=90, help="margem da página, em pixels (padrão: 90)")
     p.add_argument("--paper", choices=sorted(PAPERS), default="a4", help="tamanho do papel (padrão: a4)")
     p.add_argument("--no-jitter", action="store_true", help="desliga o efeito manuscrito (texto reto)")
+    p.add_argument("--textura", action="store_true",
+                   help="pós-processa o PDF com textura realista de papel/tinta (módulo textura.py; "
+                        "requer: pip install -r requirements-textura.txt)")
+    p.add_argument("--intensidade", type=float, default=0.6, dest="intensidade",
+                   help="força da textura, 0-1 (padrão: 0.6; só tem efeito com --textura)")
     return p
 
 
@@ -293,9 +309,22 @@ def main(argv: list[str] | None = None) -> int:
     out = args.output or args.input.with_suffix(".pdf")
     img.save(out, format="PDF", resolution=DPI)
 
+    texturizado = False
+    if args.textura:
+        try:
+            import textura  # módulo opcional da mesma pasta (não afeta o núcleo)
+            textura.texturizar_pdf(out, out, seed=args.seed, intensidade=args.intensidade)
+            texturizado = True
+        except SystemExit as e:
+            print(f"aviso: {e}", file=sys.stderr)
+            print("O PDF acima foi gerado SEM textura.", file=sys.stderr)
+            return 1
+
     print(f"✔ {out} ({out.stat().st_size / 1024:.1f} KiB)")
     print(f"  página: {PAPERS[args.paper][0]}x{PAPERS[args.paper][1]} px @ {DPI} DPI ({args.paper})")
     print(f"  linhas: {len(lines)} | fonte: {font_label} | tamanho final: {font_size}px")
+    if texturizado:
+        print(f"  textura: aplicada (augraphy) | intensidade: {args.intensidade}")
     if args.seed is not None:
         print(f"  seed: {args.seed}")
     return 0

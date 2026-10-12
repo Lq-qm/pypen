@@ -25,9 +25,17 @@ RAIZ = Path(__file__).resolve().parent
 EXEMPLO = (RAIZ / "exemplo.txt").read_text(encoding="utf-8")
 
 # (rótulo no dropdown, chave do preset em pypen.FONT_PRESETS)
+# ordem: caneta → cursivas → medievais
 FONT_OPTIONS = [
     ("manuscrita — Patrick Hand (caneta)", "manuscrita"),
     ("kalam — caneta, traço grosso", "kalam"),
+    ("cursiva — Caveat (casual)", "cursiva"),
+    ("dancing — Dancing Script (fluida)", "dancing"),
+    ("tangerine — Tangerine (fina)", "tangerine"),
+    ("indie — Indie Flower (despojada)", "indie"),
+    ("sacramento — Sacramento (elegante)", "sacramento"),
+    ("allura — caligráfica", "allura"),
+    ("great vibes — caligráfica fina", "great-vibes"),
     ("medieval — MedievalSharp", "medieval"),
     ("uncial — Uncial Antiqua (séculos 4–8)", "uncial"),
     ("fraktur — UnifrakturMaguntia (blackletter)", "fraktur"),
@@ -87,6 +95,33 @@ def baixar_pdf(
     return caminho
 
 
+def baixar_pdf_texturizado(
+    texto: str,
+    fonte: str,
+    cor_papel: str,
+    cor_tinta: str,
+    tamanho: float,
+    formato: str,
+    margem: float,
+    seed: int | None,
+    jitter: bool,
+    intensidade: float,
+) -> str:
+    """Gera o PDF e aplica a texturização realista do módulo textura (augraphy)."""
+    import textura  # módulo local; sem augraphy, texturizar_pdf avisa educadamente
+    img = render_page(texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter)
+    fd, bruto = tempfile.mkstemp(suffix=".pdf", prefix="pypen-")
+    os.close(fd)
+    img.save(bruto, format="PDF", resolution=DPI)
+    fd2, final = tempfile.mkstemp(suffix=".pdf", prefix="pypen-texturizado-")
+    os.close(fd2)
+    try:
+        textura.texturizar_pdf(bruto, final, seed=seed, intensidade=intensidade)
+    except SystemExit as e:
+        raise gr.Error(f"Texturização indisponível: {e}")
+    return str(final)
+
+
 # --- interface --------------------------------------------------------------------
 
 def load_demo() -> gr.Blocks:
@@ -130,6 +165,12 @@ def load_demo() -> gr.Blocks:
                     )
                 pdf_file = gr.File(label="PDF")
                 btn_pdf = gr.Button("⬇️ Baixar PDF de uma página", variant="primary")
+                intensidade = gr.Slider(
+                    0, 1, value=0.6, step=0.05,
+                    label="Textura: intensidade (0 = só papel, 1 = envelhecido)",
+                )
+                pdf_tex_file = gr.File(label="PDF texturizado")
+                btn_textura = gr.Button("🖋️ Baixar PDF texturizado (augraphy)", variant="secondary")
 
             with gr.Column(scale=4):
                 preview = gr.Image(
@@ -143,6 +184,13 @@ def load_demo() -> gr.Blocks:
         for comp in all_inputs:
             comp.change(render_page, inputs=all_inputs, outputs=preview, api_name="/render")
         btn_pdf.click(baixar_pdf, inputs=all_inputs, outputs=pdf_file, api_name="/pdf")
+        inputs_tex = all_inputs + [intensidade]
+        btn_textura.click(
+            baixar_pdf_texturizado,
+            inputs=inputs_tex,
+            outputs=pdf_tex_file,
+            api_name="/pdf-texturizado",
+        )
 
     return demo
 

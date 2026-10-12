@@ -6,9 +6,10 @@ Cada caractere é desenhado individualmente com leve rotação, "tremor" de linh
 variação sutil de tamanho e pressão da tinta — simulando caligrafia. A única
 dependência é o [Pillow](https://pillow.readthedocs.io/).
 
-Veem embutidas **9 fontes open-source** (todas com licença [OFL 1.1](fonts/licenses/)),
-das caneta do dia a dia a estilos **medievais** — uncials, blackletter (fraktur) e
-serifas antigas de livro. Veja a [tabela de fontes](#fontes).
+Veem embutidas **16 fontes open-source** (todas com licença [OFL 1.1](fonts/licenses/)):
+caneta do dia a dia, **letras cursivas** (da casual à caligráfica) e estilos
+**medievais** — uncials, blackletter (fraktur) e serifas antigas de livro.
+Veja a [tabela de fontes](#fontes).
 
 ## Instalação
 
@@ -27,6 +28,41 @@ ajusta; no final, um botão baixa o PDF de uma página:
 .venv/bin/python app.py        # ou: python app.py
 # abra http://127.0.0.1:7860
 ```
+
+## Textura realista (opcional)
+
+O módulo **`textura.py`** é um pós-processador independente: pega o PDF que *já foi
+criado* e, usando a biblioteca [augraphy](https://pypi.org/project/augraphy/), dá a ele
+cara de página manuscrita de verdade — textura de papel, bleed de tinta (a caneta
+“esmaga” o papel), manchas de idade e grão fino.
+
+O núcleo do pypen **não depende** do augraphy: ele só entra em ação quando você pede.
+
+```bash
+.venv/bin/pip install -r requirements-textura.txt     # uma vez
+
+# opção 1: tudo num comando (após gerar, texturiza o próprio PDF)
+.venv/bin/python pypen.py texto.txt -o saida.pdf --textura --seed 7
+
+# opção 2: texto → PDF → textura, em etapas
+.venv/bin/python pypen.py texto.txt -o saida.pdf
+.venv/bin/python textura.py saida.pdf --seed 7 --intensidade 0.8
+
+# opção 3: na interface gráfica — botão “Baixar PDF texturizado”
+```
+
+`textura.py` também é uma API Python:
+
+```python
+from textura import texturizar_pdf
+texturizar_pdf("saida.pdf", "saida_texturada.pdf", seed=7, intensidade=0.6)
+```
+
+| opção | descrição |
+|---|---|
+| `--intensidade` | força do envelhecimento, 0–1 (padrão 0.6) |
+| `--textura` | tipo de textura: `normal`, `rough_stains`, `fine_stains`, `light_stains`, `curvy_edge` ou `random` (sorteado com a seed) |
+| `--seed` | mesma seed → mesmo resultado (reprodutível) |
 
 ## Uso
 
@@ -80,6 +116,13 @@ para o português (acentos `ã ç é õ` etc.). Licença [OFL 1.1](fonts/license
 | -------------- | ------------------- | ------------------------------------------ | --------------------------- |
 | `manuscrita`   | Patrick Hand        | caneta, dia a dia (padrão)                 | Patrick Wagesreiter         |
 | `kalam`        | Kalam               | caneta, traço mais grosso                  | Indian Type Foundry         |
+| `cursiva`      | Caveat              | cursiva casual, conectada                  | Caveat Project              |
+| `dancing`      | Dancing Script      | cursiva fluida, semi-formal                | Dancing Script Project      |
+| `tangerine`    | Tangerine           | cursiva fina                               | Toshi Omagari               |
+| `indie`        | Indie Flower        | cursiva despojada                          | kimberlygeswein             |
+| `sacramento`   | Sacramento          | cursiva elegante                           | Astigmatic (B. Bonislawsky) |
+| `allura`       | Allura              | caligráfica, traço firme                   | Allura Project              |
+| `great-vibes`  | Great Vibes         | caligráfica fina, formal                   | Great Vibes Project         |
 | `medieval`     | MedievalSharp       | "medieval", arestas suaves                 | wmk69                       |
 | `uncial`       | Uncial Antiqua      | uncial, manuscritos dos séculos 4–8        | Brian J. Bonislawsky        |
 | `fraktur`      | UnifrakturMaguntia  | blackletter (texto gótico antigo)          | j. wust / Peter Wiegel      |
