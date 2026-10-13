@@ -1,3 +1,0 @@
-# Opcional — texturização realista dos PDFs (módulo textura.py)
--r requirements.txt
-augraphy>=8.0
