@@ -85,6 +85,7 @@ def preview_texturizado(
     tipo_textura: str,
     tom_papel: str,
     intensidade: float,
+    pagina_usada: float,
 ) -> tuple["pypen.Image.Image", str]:
     """Gera a pré-visualização texturizada (imagem + mensagem de status).
 
@@ -104,6 +105,9 @@ def preview_texturizado(
             intensidade=intensidade,
             tipo_textura=tipo_textura,
             tom=tom_papel,
+            atravessada=pagina_usada,
+            sombra=pagina_usada,
+            varredura=pagina_usada,
         )
     except SystemExit as e:
         return img, (
@@ -173,6 +177,10 @@ def load_demo() -> gr.Blocks:
                     0, 1, value=0.6, step=0.05,
                     label="Textura: intensidade (0 = só papel, 1 = envelhecido)",
                 )
+                pagina_usada = gr.Slider(
+                    0, 1.5, value=0.0, step=0.05,
+                    label="Textura: página usada (sombra + tinta atravessada + varredura; 0 = off)",
+                )
                 btn_preview_tex = gr.Button(
                     "👀 Atualizar pré-visualização texturizada",
                     variant="secondary",
@@ -195,7 +203,7 @@ def load_demo() -> gr.Blocks:
         all_inputs = [texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter]
         for comp in all_inputs:
             comp.change(render_page, inputs=all_inputs, outputs=preview, api_name="/render")
-        inputs_tex = all_inputs + [tipo_textura, tom_papel, intensidade]
+        inputs_tex = all_inputs + [tipo_textura, tom_papel, intensidade, pagina_usada]
         btn_preview_tex.click(
             preview_texturizado,
             inputs=inputs_tex,

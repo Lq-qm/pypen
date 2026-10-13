@@ -21,7 +21,7 @@ Como o augraphy 8.x trabalha com camadas separadas (papel e tinta), este módulo
 
 O núcleo do pypen (CLI e GUI) NÃO depende deste módulo. Para usá-lo, instale:
 
-    pip install -r requirements-textura.txt
+    pip install -r requirements.txt        # já inclui o augraphy
 
 Uso no terminal:
 
@@ -85,7 +85,7 @@ def _exigir_augraphy() -> None:
     if augraphy is None:
         raise SystemExit(
             "augraphy não está instalado neste Python. "
-            "Rode:  pip install -r requirements-textura.txt"
+            "Rode:  pip install -r requirements.txt"
         )
 
 
@@ -178,6 +178,27 @@ def _escala(valor: float, teto: float = 1.5) -> float:
     return min(float(teto), max(0.0, float(valor)))
 
 
+def _escalar(efeito: np.ndarray, base: np.ndarray, forca: float) -> np.ndarray:
+    """Amplifica o delta do efeito por `forca` (1.0 = efeito como gerado, 1.5 = reforçado)."""
+    if forca == 1.0:
+        return efeito
+    out = base.astype(float) + (efeito.astype(float) - base.astype(float)) * forca
+    return np.clip(out, 0, 255).astype("uint8")
+
+
+def _sombra_suave() -> "augraphy.ShadowCast":
+    """ShadowCast afinado: sombra discreta nas bordas da página (a padrão do
+    augraphy é forte demais e não dá para dosar por força — por isso o _escalar)."""
+    return augraphy.ShadowCast(
+        p=1,
+        shadow_opacity_range=(0.12, 0.28),
+        shadow_width_range=(0.06, 0.16),
+        shadow_height_range=(0.06, 0.16),
+        shadow_blur_kernel_range=(61, 121),
+        shadow_iterations_range=(1, 1),
+    )
+
+
 def texturizar_pdf(
     entrada: str | Path,
     saida: str | Path | None = None,
@@ -191,6 +212,9 @@ def texturizar_pdf(
     grão: float = 1.0,
     bordas: float = 0.5,
     luz: float = 0.3,
+    atravessada: float = 0.0,
+    sombra: float = 0.0,
+    varredura: float = 0.0,
     dpi: int = DPI,
 ) -> Path:
     """Aplica texturização realista a um PDF de 1 página e salva o resultado.
@@ -206,6 +230,10 @@ def texturizar_pdf(
     :param grão: multiplicador do grão fino (0 desliga, 1 = padrão).
     :param bordas: escurecimento das bordas, 0–1 (padrão 0.5).
     :param luz: gradiente de luz ("papel sob lâmpada"), 0–1 (padrão 0.3).
+    :param atravessada: tinta atravessada (fantasma da tinta pelo verso),
+        0–1.5 (padrão 0 = desligado; 1 = padrão, 1.5 reforça).
+    :param sombra: sombra suave nas bordas da página, 0–1.5 (padrão 0).
+    :param varredura: artefatos de varredura antiga (JPEG), 0–1.5 (padrão 0).
     :param dpi: resolução do PDF de saída (padrão 150, igual ao pypen).
     :return: caminho do PDF texturizado criado.
     """
@@ -220,6 +248,9 @@ def texturizar_pdf(
     m_f = _escala(manchas)   # multiplicadores de cada efeito
     b_f = _escala(bleed)
     g_f = _escala(grão)
+    at_f = _escala(atravessada)  # camada "página usada"
+    so_f = _escala(sombra)
+    va_f = _escala(varredura)
 
     rng = random.Random(seed)
     tipo = tipo_textura if tipo_textura != "random" else rng.choice(SAFE_TEX_TYPES)
@@ -277,6 +308,12 @@ def texturizar_pdf(
             pagina2,
         )
 
+    # 5b) página usada: tinta atravessada (fantasma da escrita pelo verso)
+    if at_f > 0:
+        _semeiar(seed)
+        bt = _aplicar(augraphy.BleedThrough(p=1), pagina2)
+        pagina2 = _escalar(bt, pagina2, at_f)
+
     # 6) iluminação: gradiente de luz (efeito forte do augraphy, mesclado)
     if luz > 0:
         _semeiar(seed)
@@ -287,12 +324,24 @@ def texturizar_pdf(
     # 7) bordas escurecidas (vignette) — determinístico, nosso próprio
     pagina2 = _escurecer_bordas(pagina2, bordas)
 
-    # 8) grão fino por último (por cima de tudo)
+    # 7b) página usada: sombra suave nas bordas da página
+    if so_f > 0:
+        _semeiar(seed)
+        sc = _aplicar(_sombra_suave(), pagina2)
+        pagina2 = _escalar(sc, pagina2, so_f)
+
+    # 8) grão fino (por cima de tudo)
     if g_f > 0:
         pagina2 = _aplicar(
             augraphy.SubtleNoise(subtle_range=max(2, int((2 + 10 * intensidade) * min(g_f, 1.0))), p=1),
             pagina2,
         )
+
+    # 8b) página usada: artefatos de varredura antiga (por último, como num scan real)
+    if va_f > 0:
+        _semeiar(seed)
+        jp = _aplicar(augraphy.Jpeg(p=1, quality_range=(18, 45)), pagina2)
+        pagina2 = _escalar(jp, pagina2, va_f)
 
     img = Image.fromarray(pagina2, "RGB")
     saida = Path(saida) if saida else entrada.with_name(f"{entrada.stem}_texturizado.pdf")
@@ -346,6 +395,18 @@ def main(argv: list[str] | None = None) -> int:
         "--luz", type=float, default=0.3, metavar="0-1",
         help="gradiente de luz (papel sob lâmpada): 0 desliga",
     )
+    ap.add_argument(
+        "--atravessada", type=float, default=0.0, metavar="0-1.5",
+        help="tinta atravessada (fantasma da tinta pelo verso): 0 desliga, 1 = padrão",
+    )
+    ap.add_argument(
+        "--sombra", type=float, default=0.0, metavar="0-1.5",
+        help="sombra suave nas bordas da página: 0 desliga, 1 = padrão",
+    )
+    ap.add_argument(
+        "--varredura", type=float, default=0.0, metavar="0-1.5",
+        help="artefatos de varredura antiga (scan): 0 desliga, 1 = padrão",
+    )
     args = ap.parse_args(argv)
 
     try:
@@ -360,6 +421,9 @@ def main(argv: list[str] | None = None) -> int:
             grão=args.grao,
             bordas=args.bordas,
             luz=args.luz,
+            atravessada=args.atravessada,
+            sombra=args.sombra,
+            varredura=args.varredura,
         )
     except (SystemExit, FileNotFoundError, ValueError) as e:
         print(f"erro: {e}", file=sys.stderr)

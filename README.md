@@ -14,9 +14,12 @@ Veja a [tabela de fontes](#fontes).
 ## Instalação
 
 ```bash
-pip install -r requirements.txt          # CLI
-pip install -r requirements-gui.txt      # interface gráfica (opcional)
+pip install -r requirements.txt          # tudo: CLI + interface gráfica + textura
 ```
+
+> O núcleo do CLI só usa **Pillow**. As dependências da interface gráfica (`gradio`)
+> e da textura (`augraphy`) já vêm no mesmo arquivo, mas são opcionais — sem elas
+> o `pypen.py` continua funcionando normalmente.
 
 ## Interface gráfica
 
@@ -24,9 +27,10 @@ Com todos os controles (fonte, cores do papel e da tinta, tamanho, margem, seed)
 **pré-visualização ao vivo** — o resultado aparece na própria página enquanto você
 ajusta. Há **duas caixas de pré-visualização, uma abaixo da outra**: a página
 **lisa** (atualiza ao vivo) e, logo abaixo, a versão **texturizada** (botão
-“👀 Atualizar pré-visualização texturizada”, requer augraphy). Para salvar,
-use o **botão de download** de cada caixa (baixa a imagem da página).
-No final, um botão baixa o PDF de uma página:
+“👀 Atualizar pré-visualização texturizada”, requer augraphy). Os controles de
+textura incluem tipo do papel, tom, intensidade e a camada **página usada**
+(sombra + tinta atravessada + varredura). Para salvar, use o **botão de
+download** de cada caixa (baixa a imagem da página).
 
 ```bash
 .venv/bin/python app.py        # ou: python app.py
@@ -41,10 +45,9 @@ cara de página manuscrita de verdade — textura de papel, bleed de tinta (a ca
 “esmaga” o papel), manchas de idade e grão fino.
 
 O núcleo do pypen **não depende** do augraphy: ele só entra em ação quando você pede.
+(o `augraphy` já está no `requirements.txt`.)
 
 ```bash
-.venv/bin/pip install -r requirements-textura.txt     # uma vez
-
 # opção 1: tudo num comando (após gerar, texturiza o próprio PDF)
 .venv/bin/python pypen.py texto.txt -o saida.pdf --textura --seed 7
 
@@ -73,6 +76,9 @@ texturizar_pdf("saida.pdf", "saida_texturada.pdf", seed=7, intensidade=0.6)
 | `--grao` | grão fino do papel — 0 desliga, 1 padrão |
 | `--bordas` | escurecimento das bordas (vignette), 0–1 (padrão 0.5) |
 | `--luz` | gradiente de luz (papel sob lâmpada), 0–1 (padrão 0.3) |
+| `--atravessada` | tinta atravessada — fantasma da tinta pelo verso do papel, 0–1.5 (padrão 0 = off) |
+| `--sombra` | sombra suave nas bordas da página, 0–1.5 (padrão 0 = off) |
+| `--varredura` | artefatos de varredura antiga (scan), 0–1.5 (padrão 0 = off) |
 | `--seed` | mesma seed → mesmo resultado (reprodutível) |
 
 Cada efeito tem força **individual** — desligue o que não quiser:
@@ -83,11 +89,15 @@ python textura.py saida.pdf --tom creme --manchas 0 --bordas 0.9
 
 # tinta bem nítida (sem bleed), sem grão, com luz de escritório
 python textura.py saida.pdf --bleed 0 --grao 0 --luz 0.5
+
+# página de verdade: fantasma da tinta pelo verso, sombra e scan antigo
+python textura.py saida.pdf --atravessada 1 --sombra 1.2 --varredura 1
 ```
 
 > No `pypen.py` (um comando só) os atalhos são `--textura`, `--intensidade`,
-> `--tipo-textura` e `--tom-papel`; para afinar cada efeito, rode o passo 2
-> com `textura.py`.
+> `--tipo-textura`, `--tom-papel` e `--pagina-usada` (liga os três efeitos de
+> “página usada” de uma vez); para afinar cada efeito separadamente, rode o
+> passo 2 com `textura.py`.
 
 ## Uso
 

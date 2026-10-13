@@ -248,7 +248,8 @@ def build_parser() -> argparse.ArgumentParser:
 "  python pypen.py texto.txt --size 40 --ink 1f3a93 --paper letter\n"
 "  python pypen.py texto.txt --font medieval --paper-color f5f1e8\n"
 "  python pypen.py texto.txt --textura --seed 7   # papel + tinta realistas (augraphy)\n"
-"  python pypen.py texto.txt --textura --tom-papel sepia --tipo-textura fine_stains",
+"  python pypen.py texto.txt --textura --tom-papel sepia --tipo-textura fine_stains\n"
+"  python pypen.py texto.txt --textura --pagina-usada 1  # sombra + tinta atravessada + varredura",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("input", type=Path, help="arquivo .txt de entrada")
@@ -267,7 +268,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-jitter", action="store_true", help="desliga o efeito manuscrito (texto reto)")
     p.add_argument("--textura", action="store_true",
                    help="pós-processa o PDF com textura realista de papel/tinta (módulo textura.py; "
-                        "requer: pip install -r requirements-textura.txt)")
+                        "requer: pip install -r requirements.txt)")
     p.add_argument("--intensidade", type=float, default=0.6, dest="intensidade",
                    help="força da textura, 0-1 (padrão: 0.6; só tem efeito com --textura)")
     p.add_argument("--tipo-textura", type=str, default="random", dest="tipo_textura",
@@ -276,6 +277,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--tom-papel", type=str, default="neutro", dest="tom_papel",
                    choices=["neutro", "creme", "sepia", "azulado"],
                    help="cor do papel texturizado (padrão: neutro; só com --textura)")
+    p.add_argument("--pagina-usada", type=float, default=0.0, dest="pagina_usada",
+                   metavar="0-1.5",
+                   help="camada 'página usada': sombra + tinta atravessada + varredura "
+                        "(padrão: 0 = desligado; 1 = padrão, 1.5 reforça; só com --textura)")
     return p
 
 
@@ -326,6 +331,9 @@ def main(argv: list[str] | None = None) -> int:
                 intensidade=args.intensidade,
                 tipo_textura=args.tipo_textura,
                 tom=args.tom_papel,
+                atravessada=args.pagina_usada,
+                sombra=args.pagina_usada,
+                varredura=args.pagina_usada,
             )
             texturizado = True
         except SystemExit as e:
@@ -338,6 +346,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  linhas: {len(lines)} | fonte: {font_label} | tamanho final: {font_size}px")
     if texturizado:
         print(f"  textura: aplicada (augraphy) | intensidade: {args.intensidade}")
+        if args.pagina_usada > 0:
+            print(f"  página usada: {args.pagina_usada} (sombra + tinta atravessada + varredura)")
     if args.seed is not None:
         print(f"  seed: {args.seed}")
     return 0
