@@ -240,18 +240,17 @@ def load_demo() -> gr.Blocks:
                 btn_textura = gr.Button("🖋️ Baixar PDF texturizado (augraphy)", variant="secondary")
 
             with gr.Column(scale=4):
-                with gr.Row(equal_height=True):
-                    preview = gr.Image(
-                        value=render_page(EXEMPLO, "manuscrita", "#ffffff", "#2b3a67", 34, "a4", 90, 7, True),
-                        type="pil",
-                        label="Liso (ao vivo)",
-                        height=560,
-                    )
-                    preview_tex = gr.Image(
-                        type="pil",
-                        label="Texturizado (augraphy)",
-                        height=560,
-                    )
+                preview = gr.Image(
+                    value=render_page(EXEMPLO, "manuscrita", "#ffffff", "#2b3a67", 34, "a4", 90, 7, True),
+                    type="pil",
+                    label="Liso (ao vivo)",
+                    height=560,
+                )
+                preview_tex = gr.Image(
+                    type="pil",
+                    label="Texturizado (augraphy)",
+                    height=560,
+                )
                 status_tex = gr.HTML("")
 
         all_inputs = [texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter]

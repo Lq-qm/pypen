@@ -22,8 +22,9 @@ pip install -r requirements-gui.txt      # interface gráfica (opcional)
 
 Com todos os controles (fonte, cores do papel e da tinta, tamanho, margem, seed) e
 **pré-visualização ao vivo** — o resultado aparece na própria página enquanto você
-ajusta. Há **duas caixas lado a lado**: o PDF **liso** (atualiza ao vivo) e a versão
-**texturizada** (botão “👀 Atualizar pré-visualização texturizada”, requer augraphy).
+ajusta. Há **duas caixas, uma abaixo da outra**: o PDF **liso** (atualiza ao vivo)
+e, logo abaixo, a versão **texturizada** (botão “👀 Atualizar pré-visualização
+texturizada”, requer augraphy).
 No final, um botão baixa o PDF de uma página:
 
 ```bash
