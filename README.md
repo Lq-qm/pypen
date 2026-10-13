@@ -22,9 +22,10 @@ pip install -r requirements-gui.txt      # interface gráfica (opcional)
 
 Com todos os controles (fonte, cores do papel e da tinta, tamanho, margem, seed) e
 **pré-visualização ao vivo** — o resultado aparece na própria página enquanto você
-ajusta. Há **duas caixas, uma abaixo da outra**: o PDF **liso** (atualiza ao vivo)
-e, logo abaixo, a versão **texturizada** (botão “👀 Atualizar pré-visualização
-texturizada”, requer augraphy).
+ajusta. Há **duas caixas de pré-visualização, uma abaixo da outra**: a página
+**lisa** (atualiza ao vivo) e, logo abaixo, a versão **texturizada** (botão
+“👀 Atualizar pré-visualização texturizada”, requer augraphy). Para salvar,
+use o **botão de download** de cada caixa (baixa a imagem da página).
 No final, um botão baixa o PDF de uma página:
 
 ```bash
@@ -51,8 +52,8 @@ O núcleo do pypen **não depende** do augraphy: ele só entra em ação quando 
 .venv/bin/python pypen.py texto.txt -o saida.pdf
 .venv/bin/python textura.py saida.pdf --seed 7 --intensidade 0.8
 
-# opção 3: na interface gráfica — pré-visualize na caixa “Texturizado” e baixe
-#           pelo botão “Baixar PDF texturizado”
+# opção 3: na interface gráfica — pré-visualize na caixa “Texturizado”
+#           (o PDF texturizado em si se gera pelo CLI acima)
 ```
 
 `textura.py` também é uma API Python:

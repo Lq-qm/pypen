@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """pypen — interface gráfica (Gradio).
 
-Escreva um texto, escolha fonte, cores e veja o resultado **ao vivo**;
-depois baixe o PDF de uma página.
+Escreva um texto, escolha fonte, cores e veja o resultado **ao vivo** —
+liso e texturizado — e baixe a imagem da página pela própria caixa de pré-visualização.
 
 Executar:
     .venv/bin/python app.py        # abre em http://127.0.0.1:7860
@@ -45,10 +45,6 @@ FONT_OPTIONS = [
     ("gótica — Grenze Gotisch", "gotica"),
 ]
 
-# ordem fixa dos parâmetros (precisa casar com as listas `inputs`)
-INPUTS = "texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter"
-
-
 def render_page(
     texto: str,
     fonte: str,
@@ -74,60 +70,6 @@ def render_page(
         jitter=bool(jitter),
     )
     return img
-
-
-def baixar_pdf(
-    texto: str,
-    fonte: str,
-    cor_papel: str,
-    cor_tinta: str,
-    tamanho: float,
-    formato: str,
-    margem: float,
-    seed: int | None,
-    jitter: bool,
-) -> str:
-    """Gera o PDF de uma página e retorna o caminho do arquivo temporário."""
-    img = render_page(texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter)
-    fd, caminho = tempfile.mkstemp(suffix=".pdf", prefix="pypen-")
-    os.close(fd)
-    img.save(caminho, format="PDF", resolution=DPI)
-    return caminho
-
-
-def baixar_pdf_texturizado(
-    texto: str,
-    fonte: str,
-    cor_papel: str,
-    cor_tinta: str,
-    tamanho: float,
-    formato: str,
-    margem: float,
-    seed: int | None,
-    jitter: bool,
-    tipo_textura: str,
-    tom_papel: str,
-    intensidade: float,
-) -> str:
-    """Gera o PDF e aplica a texturização realista do módulo textura (augraphy)."""
-    import textura  # módulo local; sem augraphy, texturizar_pdf avisa educadamente
-    img = render_page(texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter)
-    fd, bruto = tempfile.mkstemp(suffix=".pdf", prefix="pypen-")
-    os.close(fd)
-    img.save(bruto, format="PDF", resolution=DPI)
-    fd2, final = tempfile.mkstemp(suffix=".pdf", prefix="pypen-texturizado-")
-    os.close(fd2)
-    try:
-        textura.texturizar_pdf(
-            bruto, final,
-            seed=seed,
-            intensidade=intensidade,
-            tipo_textura=tipo_textura,
-            tom=tom_papel,
-        )
-    except SystemExit as e:
-        raise gr.Error(f"Texturização indisponível: {e}")
-    return str(final)
 
 
 def preview_texturizado(
@@ -179,8 +121,9 @@ def load_demo() -> gr.Blocks:
         gr.Markdown(
             "# ✒️ pypen — texto → PDF com cara de escrita à mão\n\n"
             "Escreva (ou cole) o texto à esquerda e o resultado aparece **ao vivo** ao lado.\n"
-            "Ao lado há duas caixas: o PDF **liso** e a versão **texturizada** (papel e tinta realistas).\n"
-            "Quando estiver satisfeito, baixe o PDF de uma página."
+            "Há duas caixas de pré-visualização: a página **lisa** e a versão **texturizada**\n"
+            "(papel e tinta realistas). Quando estiver satisfeito, use o botão de download\n"
+            "de cada caixa para salvar a imagem da página."
         )
         with gr.Row(equal_height=False):
             with gr.Column(scale=5):
@@ -214,8 +157,6 @@ def load_demo() -> gr.Blocks:
                         label="Efeito manuscrito (tremor e rotação)",
                         scale=1,
                     )
-                pdf_file = gr.File(label="PDF")
-                btn_pdf = gr.Button("⬇️ Baixar PDF de uma página", variant="primary")
                 with gr.Row():
                     tipo_textura = gr.Dropdown(
                         choices=["random", "normal", "rough_stains", "fine_stains",
@@ -236,8 +177,6 @@ def load_demo() -> gr.Blocks:
                     "👀 Atualizar pré-visualização texturizada",
                     variant="secondary",
                 )
-                pdf_tex_file = gr.File(label="PDF texturizado")
-                btn_textura = gr.Button("🖋️ Baixar PDF texturizado (augraphy)", variant="secondary")
 
             with gr.Column(scale=4):
                 preview = gr.Image(
@@ -256,19 +195,12 @@ def load_demo() -> gr.Blocks:
         all_inputs = [texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter]
         for comp in all_inputs:
             comp.change(render_page, inputs=all_inputs, outputs=preview, api_name="/render")
-        btn_pdf.click(baixar_pdf, inputs=all_inputs, outputs=pdf_file, api_name="/pdf")
         inputs_tex = all_inputs + [tipo_textura, tom_papel, intensidade]
         btn_preview_tex.click(
             preview_texturizado,
             inputs=inputs_tex,
             outputs=[preview_tex, status_tex],
             api_name="/preview-texturizado",
-        )
-        btn_textura.click(
-            baixar_pdf_texturizado,
-            inputs=inputs_tex,
-            outputs=pdf_tex_file,
-            api_name="/pdf-texturizado",
         )
         # preenche a pré-visualização texturizada assim que a página abre
         demo.load(
