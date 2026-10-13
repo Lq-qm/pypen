@@ -130,13 +130,56 @@ def baixar_pdf_texturizado(
     return str(final)
 
 
+def preview_texturizado(
+    texto: str,
+    fonte: str,
+    cor_papel: str,
+    cor_tinta: str,
+    tamanho: float,
+    formato: str,
+    margem: float,
+    seed: int | None,
+    jitter: bool,
+    tipo_textura: str,
+    tom_papel: str,
+    intensidade: float,
+) -> tuple["pypen.Image.Image", str]:
+    """Gera a pré-visualização texturizada (imagem + mensagem de status).
+
+    Sem augraphy, devolve a imagem lisa + aviso (não quebra a interface).
+    """
+    import textura  # módulo local; opcional
+    img = render_page(texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter)
+    fd, bruto = tempfile.mkstemp(suffix=".pdf", prefix="pypen-")
+    os.close(fd)
+    img.save(bruto, format="PDF", resolution=DPI)
+    fd2, final = tempfile.mkstemp(suffix=".pdf", prefix="pypen-texturizado-")
+    os.close(fd2)
+    try:
+        textura.texturizar_pdf(
+            bruto, final,
+            seed=seed,
+            intensidade=intensidade,
+            tipo_textura=tipo_textura,
+            tom=tom_papel,
+        )
+    except SystemExit as e:
+        return img, (
+            "<span style='color:#b45309'>⚠️ ", str(e),
+            " — exibindo a versão <b>sem</b> textura.</span>"
+        )
+    tex = textura.extrair_pagina(final)
+    return tex, "<span style='color:#15803d'>✔ pré-visualização texturizada atualizada</span>"
+
+
 # --- interface --------------------------------------------------------------------
 
 def load_demo() -> gr.Blocks:
     with gr.Blocks(title="pypen — do texto ao PDF manuscrito") as demo:
         gr.Markdown(
             "# ✒️ pypen — texto → PDF com cara de escrita à mão\n\n"
-            "Escreva (ou cole) o texto à esquerda e o resultado aparece **ao vivo** ao lado. "
+            "Escreva (ou cole) o texto à esquerda e o resultado aparece **ao vivo** ao lado.\n"
+            "Ao lado há duas caixas: o PDF **liso** e a versão **texturizada** (papel e tinta realistas).\n"
             "Quando estiver satisfeito, baixe o PDF de uma página."
         )
         with gr.Row(equal_height=False):
@@ -189,27 +232,50 @@ def load_demo() -> gr.Blocks:
                     0, 1, value=0.6, step=0.05,
                     label="Textura: intensidade (0 = só papel, 1 = envelhecido)",
                 )
+                btn_preview_tex = gr.Button(
+                    "👀 Atualizar pré-visualização texturizada",
+                    variant="secondary",
+                )
                 pdf_tex_file = gr.File(label="PDF texturizado")
                 btn_textura = gr.Button("🖋️ Baixar PDF texturizado (augraphy)", variant="secondary")
 
             with gr.Column(scale=4):
-                preview = gr.Image(
-                    value=render_page(EXEMPLO, "manuscrita", "#ffffff", "#2b3a67", 34, "a4", 90, 7, True),
-                    type="pil",
-                    label="Pré-visualização (ao vivo)",
-                    height=640,
-                )
+                with gr.Row(equal_height=True):
+                    preview = gr.Image(
+                        value=render_page(EXEMPLO, "manuscrita", "#ffffff", "#2b3a67", 34, "a4", 90, 7, True),
+                        type="pil",
+                        label="Liso (ao vivo)",
+                        height=560,
+                    )
+                    preview_tex = gr.Image(
+                        type="pil",
+                        label="Texturizado (augraphy)",
+                        height=560,
+                    )
+                status_tex = gr.HTML("")
 
         all_inputs = [texto, fonte, cor_papel, cor_tinta, tamanho, formato, margem, seed, jitter]
         for comp in all_inputs:
             comp.change(render_page, inputs=all_inputs, outputs=preview, api_name="/render")
         btn_pdf.click(baixar_pdf, inputs=all_inputs, outputs=pdf_file, api_name="/pdf")
         inputs_tex = all_inputs + [tipo_textura, tom_papel, intensidade]
+        btn_preview_tex.click(
+            preview_texturizado,
+            inputs=inputs_tex,
+            outputs=[preview_tex, status_tex],
+            api_name="/preview-texturizado",
+        )
         btn_textura.click(
             baixar_pdf_texturizado,
             inputs=inputs_tex,
             outputs=pdf_tex_file,
             api_name="/pdf-texturizado",
+        )
+        # preenche a pré-visualização texturizada assim que a página abre
+        demo.load(
+            preview_texturizado,
+            inputs=inputs_tex,
+            outputs=[preview_tex, status_tex],
         )
 
     return demo
