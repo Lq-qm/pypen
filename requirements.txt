@@ -1,1 +1,10 @@
+# pypen — todas as dependências num arquivo só.
+#
+# O núcleo (pypen.py) só usa Pillow; as outras duas são opcionais:
+#   - gradio   → interface gráfica (app.py)
+#   - augraphy → textura realista (textura.py / --textura)
+# Sem gradio/augraphy o CLI continua funcionando normalmente.
+
 Pillow>=10.1
+gradio>=4.0
+augraphy>=8.0
